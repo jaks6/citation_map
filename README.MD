@@ -13,7 +13,7 @@ _Based on dpapathanasiou's [example script for pdfminer](https://github.com/dpap
 * Let A be a set of known articles
 * For any a in A, let title_a be its title, and text_a be its text content
 * For some x in A and y in A, x!=y:
-    * cites(x,y) is true if title_y appears in  text_a
+    * cites(x,y) is true if title_y appears in  text_x
 
 For the above to work, we do some text normalization (removing puncutation, whitespace, special characters) and assume that
 the title_y would only appear in text_x if it appears in the references section...
