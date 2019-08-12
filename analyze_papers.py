@@ -161,6 +161,14 @@ def pre_process(text):
     text = " ".join(re.findall(r'[a-z]+', text))
 
     return text
+	
+def make_directory_if_missing(directory_path):
+    if not os.path.exists(os.path.dirname(directory_path)):
+        try:
+            os.makedirs(os.path.dirname(directory_path))
+        except OSError as exc:  # Guard against race condition
+            if exc.errno != errno.EEXIST:
+                raise
 
 
 if __name__ == '__main__':
@@ -180,7 +188,13 @@ if __name__ == '__main__':
     OUTPUT_CSV_NAME = args.out_csv
     OUTPUT_GEPHI_DIR = args.gephi_dir
     OUTPUT_DELIMITER = args.delimiter
-
+	
+    out_edges_filedir = OUTPUT_GEPHI_DIR + os.sep + "Edges_" + OUTPUT_CSV_NAME
+    out_nodes_filedir = OUTPUT_GEPHI_DIR + os.sep + "Nodes_" + OUTPUT_CSV_NAME
+    
+    make_directory_if_missing(out_edges_filedir)
+    make_directory_if_missing(out_nodes_filedir)
+	
     error_documents = []
 
     # First, just get the titles in the csv
