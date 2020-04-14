@@ -27,7 +27,6 @@ graph = []
 def pdf_to_text_list(file_loc):
     """
      Extracts text (string) of PDF file contents. Images, figures are ignored.
-
     :param str file_loc: Path to .PDF document on local disk
     :return: The last 10 pages of the PDF document as string text, a list of strings
     :rtype: list
@@ -40,7 +39,7 @@ def pdf_to_text_list(file_loc):
         print >> sys.stderr, "[!] Issue parsing PDF file"
         return ""
 
-    print "\t-- Pages:", page_len
+    print("\t-- Pages:", page_len)
     # Take only last 10 pages (We assume references never take more) TODO:HARDCODE
     pages = pages[-10:]
 
@@ -88,14 +87,13 @@ def read_titles(zotero_csv):
 def process_pdf(metadata, write_to_disk=False):
     """
     Reads text from PDF file specified in the CSV lines' file column, optionally saves it to .txt on disk
-
     :param dict csv_line: the CSV line to process
     :param bool write_to_disk: whether the text will be written to disk also
     :return: a tuple (bool, text), where bool indicates whether text was extracted successfully,
         text will be either the pdf text contents or the error message
     :rtype: tuple
     """
-    print " ".join(metadata['author'].split(";")[:3]), metadata['year'], metadata['title'][:32], metadata['file']
+    print(" ".join(metadata['author'].split(";")[:3]), metadata['year'], metadata['title'][:32], metadata['file'])
     if len(metadata['file']) < 1:
         return False, "Missing Zotero file"
 
@@ -125,24 +123,24 @@ def find_citations(paper_text, all_titles, metadata):
     for title in all_titles:
         if (title != fixed_paper_title) and \
                 (title.replace(' ', '') in fixed_text.replace(' ', '')):  # Stripping whitespace!
-            print "\t\t-- citation found:", title
+            print("\t\t-- citation found:", title)
             cited_ids.append(title)
             # graph.append([fixed_paper_title, title])
     return cited_ids
 
 
-def article_worker((title, metadata), all_titles):
+def article_worker(title, metadata, all_titles):
     t0 = time.time()
 
     pdf_result, text = process_pdf(metadata)
     t1 = time.time()
-    print "\t-- processed pdf in ", (t1 - t0), "seconds"
+    print("\t-- processed pdf in ", (t1 - t0), "seconds")
 
     cited_papers = []
     if pdf_result:
         cited_papers = find_citations(text, all_titles, metadata)
         t2 = time.time()
-        print "\t-- processed text cites in ", (t2 - t1), "seconds"
+        print("\t-- processed text cites in ", (t2 - t1), "seconds")
 
     return title, pdf_result, text, cited_papers
 
@@ -161,7 +159,7 @@ def pre_process(text):
     text = " ".join(re.findall(r'[a-z]+', text))
 
     return text
-	
+
 def make_directory_if_missing(directory_path):
     if not os.path.exists(os.path.dirname(directory_path)):
         try:
@@ -188,13 +186,13 @@ if __name__ == '__main__':
     OUTPUT_CSV_NAME = args.out_csv
     OUTPUT_GEPHI_DIR = args.gephi_dir
     OUTPUT_DELIMITER = args.delimiter
-	
+
     out_edges_filedir = OUTPUT_GEPHI_DIR + os.sep + "Edges_" + OUTPUT_CSV_NAME
     out_nodes_filedir = OUTPUT_GEPHI_DIR + os.sep + "Nodes_" + OUTPUT_CSV_NAME
-    
+
     make_directory_if_missing(out_edges_filedir)
     make_directory_if_missing(out_nodes_filedir)
-	
+
     error_documents = []
 
     # First, just get the titles in the csv
@@ -219,13 +217,13 @@ if __name__ == '__main__':
     total_time = time.time() - pool_start_time
 
     # Print finish report, show failed documents
-    print "\n---- Finished -----\n" \
-          "Processed ", len(title_ids), " papers in  ", total_time, "seconds"
-    print "%s documents were not extracted due to errors:" % len(error_documents)
+    print("\n---- Finished -----\n" \
+          "Processed ", len(title_ids), " papers in  ", total_time, "seconds")
+    print("%s documents were not extracted due to errors:" % len(error_documents))
     for i, (doc_id, reason) in enumerate(error_documents):
         doc = titles_dict[doc_id]
-        print ("%s." % i), doc["author"], doc["year"], doc["title"], doc["file"]
-        print "\t--", reason
+        print("%s." % i), doc["author"], doc["year"], doc["title"], doc["file"]
+        print("\t--", reason)
 
     # Write Graph Edges to csv
     with open(OUTPUT_GEPHI_DIR + os.sep + "Edges_" + OUTPUT_CSV_NAME, "a") as graph_csv:
