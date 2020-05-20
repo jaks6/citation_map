@@ -11,21 +11,24 @@ _Based on dpapathanasiou's [example script for pdfminer](https://github.com/dpap
 
 ### Principle:
 * Let A be a set of known articles
-* For any a in A, let title_a be its title, and text_a be its text content
+* For any a in A, let _title_a_ be its title, and _text_a_ be its text content
 * For some x in A and y in A, x!=y:
-    * cites(x,y) is true if title_y appears in  text_x
+    * cites(x,y) is true if _title_y_ appears in _text_x_
 
-For the above to work, we do some text normalization (removing puncutation, whitespace, special characters) and assume that
+For the above to work, we do some text normalization (removing punctuation, whitespace, special characters) and assume that
 the title_y would only appear in text_x if it appears in the references section...
 
 ### Usage:
 1. Export list of articles as .csv from Zotero, (articles should have File attachments)
 2. Run `analyze_papers.py zotero_file.csv`
-3. Script should produce have two files: Edges_titles.csv and Nodes_titles.csv in
+3. Script should produce two files: Edges_titles.csv and Nodes_titles.csv in folder "gephi"
 4. Load them into [Gephi](https://gephi.org) with "Load Spreadsheet"
 
 
-## Used libraries:
-python 2.7
-pdfminer
+## Notes
+* Tested with Python3
+* Uses the library [pdfminer](https://pypi.org/project/pdfminer/)
+* You can specify number of processes the script uses to parse the PDFs with parameter --processes (default value is 4)
+
+
 
