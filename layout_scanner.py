@@ -39,7 +39,7 @@ def with_pdf (pdf_doc, fn, pdf_pwd, *args):
         # close the pdf file
         fp.close()
     except IOError:
-        print >> sys.stderr, "Error opening file in with_pdf()"
+        print("[!] Error opening file in with_pdf()", file=sys.stderr)
         # the file doesn't exist or similar problem
         pass
     return result
@@ -171,7 +171,7 @@ def parse_lt_objs (lt_objs, page_number, images_folder, text_content=None):
                 # use html style <img /> tag to mark the position of the image within the text
                 text_content.append('<img src="'+os.path.join(images_folder, saved_file)+'" />')
             else:
-                print >> sys.stderr, "error saving image on page", page_number, lt_obj.__repr__
+                print("[!] error saving image on page", page_number, lt_obj.__repr__, file=sys.stderr)
         elif isinstance(lt_obj, LTFigure):
             if skip_images:
                 continue

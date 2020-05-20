@@ -36,14 +36,13 @@ def pdf_to_text_list(file_loc):
     try:
         page_len = len(pages)
     except TypeError:
-        print >> sys.stderr, "[!] Issue parsing PDF file"
-        return ""
+        print("[!] Issue parsing PDF file", file=sys.stderr)
+        return (-1, [])
 
-    print("\t-- Pages:", page_len)
     # Take only last 10 pages (We assume references never take more) TODO:HARDCODE
     pages = pages[-10:]
 
-    return pages
+    return (page_len, pages)
 
 
 def get_pretty_filename(metadata):
@@ -72,7 +71,7 @@ def create_missing_dirs(filename):
 
 def read_titles(zotero_csv):
     titles = {}
-    with open(zotero_csv, 'rb') as csvfile:
+    with open(zotero_csv, 'rt') as csvfile:
         reader = csv.reader(csvfile, delimiter=',')
         next(csvfile)  # Skip header
         for r in reader:
@@ -89,15 +88,33 @@ def process_pdf(metadata, write_to_disk=False):
     Reads text from PDF file specified in the CSV lines' file column, optionally saves it to .txt on disk
     :param dict csv_line: the CSV line to process
     :param bool write_to_disk: whether the text will be written to disk also
-    :return: a tuple (bool, text), where bool indicates whether text was extracted successfully,
-        text will be either the pdf text contents or the error message
+    :return: a tuple (bool, text, log), where bool indicates whether text was extracted successfully,
+        text the pdf text contents, log is log/debug messages
     :rtype: tuple
     """
-    print(" ".join(metadata['author'].split(";")[:3]), metadata['year'], metadata['title'][:32], metadata['file'])
-    if len(metadata['file']) < 1:
-        return False, "Missing Zotero file"
 
-    pages = pdf_to_text_list(metadata['file'])
+    log = []
+    log.append(" ".join(metadata['author'].split(";")[:3]) + metadata['year'] + metadata['title'][:32])
+
+    if len(metadata['file']) < 1:
+        return False, 'Missing Zotero file attachment', log
+
+    all_files = metadata['file'].split(';')
+    first_pdf = None
+    for file in all_files:
+        if file.lower().strip().endswith(".pdf"):
+            first_pdf = file
+            break
+
+    if first_pdf == None:
+        return False, 'No PDF File attached to article entry', log
+    else:
+        log.append("\t-- Found %s attachments, using pdf: %s" % (len(all_files), first_pdf))
+
+
+    original_page_count, pages = pdf_to_text_list(first_pdf)
+    if original_page_count != -1:
+        log.append("\t-- Checking last %s PDF pages out of %s total" % (len(pages), original_page_count))
 
     if write_to_disk:  # Kind of deprecated, this was used by the R script of A.R. Siders
         output_filename = get_pretty_filename(metadata)
@@ -110,10 +127,11 @@ def process_pdf(metadata, write_to_disk=False):
 
     all_pages = "\n".join(pages)
 
-    return len(all_pages) > 0, all_pages
+    return len(all_pages) > 0, all_pages, log
 
 
 def find_citations(paper_text, all_titles, metadata):
+    log = []
     cited_ids = []
     # Check which titles this paper cited:
     fixed_paper_title = pre_process(metadata["title"])
@@ -123,24 +141,37 @@ def find_citations(paper_text, all_titles, metadata):
     for title in all_titles:
         if (title != fixed_paper_title) and \
                 (title.replace(' ', '') in fixed_text.replace(' ', '')):  # Stripping whitespace!
-            print("\t\t-- citation found:", title)
+            log.append("\t---- citation found:" + title)
             cited_ids.append(title)
             # graph.append([fixed_paper_title, title])
-    return cited_ids
+    return cited_ids, log
 
 
-def article_worker(title, metadata, all_titles):
+def article_worker(dict_item, all_titles):
     t0 = time.time()
 
-    pdf_result, text = process_pdf(metadata)
+    print_log = []
+
+    title, metadata = dict_item
+    pdf_result, text, pdf_log = process_pdf(metadata)
+
     t1 = time.time()
-    print("\t-- processed pdf in ", (t1 - t0), "seconds")
+    if pdf_result:
+        print_log.append("Processed in %s seconds :" %  (t1 - t0))
+    else:
+        print_log.append("Error processing:")
+        print_log.append("\t-- " + text)
+
+    print_log += pdf_log
 
     cited_papers = []
     if pdf_result:
-        cited_papers = find_citations(text, all_titles, metadata)
+        cited_papers, citations_log = find_citations(text, all_titles, metadata)
+        print_log += citations_log
         t2 = time.time()
-        print("\t-- processed text cites in ", (t2 - t1), "seconds")
+        print_log.append("\t-- processed text cites in % seconds" % (t2 - t1))
+
+    print("\n".join(print_log) + "\n\n")
 
     return title, pdf_result, text, cited_papers
 
@@ -149,7 +180,7 @@ def pre_process(text):
     # to lowercase
     text = text.lower()
     # remove punctuation
-    text = text.translate(string.maketrans('', ''), string.punctuation)
+    text = text.translate(str.maketrans('', '', string.punctuation))
     # remove linebreaks
     # text = re.sub(r"(?<=[a-z])\r?\n", " ", text)
     text = text.replace('\r', '').replace('\n', '')
@@ -175,6 +206,8 @@ if __name__ == '__main__':
     parser.add_argument('zotero_csv', type=str, help='the Zotero exported CSV file of papers')
     parser.add_argument('--gephi_dir', default="gephi", type=str,
                         help='Output dir for gephi Edges and Nodes files (default: "gephi")')
+    parser.add_argument('--processes', default=4, type=int,
+                        help='How many worker processes to create for the time-consuming PDF parsing (default: 4)')
     parser.add_argument('--txts_dir', default="papers", type=str,
                         help='Output dir for article txt files (default: "papers")')
     parser.add_argument('--out_csv', default=DEFAULT_OUTPUT_CSV_NAME, type=str,
@@ -186,6 +219,7 @@ if __name__ == '__main__':
     OUTPUT_CSV_NAME = args.out_csv
     OUTPUT_GEPHI_DIR = args.gephi_dir
     OUTPUT_DELIMITER = args.delimiter
+    WORKER_PROCESSES = args.processes
 
     out_edges_filedir = OUTPUT_GEPHI_DIR + os.sep + "Edges_" + OUTPUT_CSV_NAME
     out_nodes_filedir = OUTPUT_GEPHI_DIR + os.sep + "Nodes_" + OUTPUT_CSV_NAME
@@ -197,16 +231,15 @@ if __name__ == '__main__':
 
     # First, just get the titles in the csv
     titles_dict = read_titles(args.zotero_csv)
-    title_ids = titles_dict.keys()
+    title_ids = list(titles_dict.keys())
 
     # Now process the PDFs
     pool_start_time = time.time()
 
-    pool = Pool(processes=4)  # start 3 worker processes
+    pool = Pool(processes=WORKER_PROCESSES)  # start n worker processes
 
     list_worker = partial(article_worker, all_titles=title_ids)
-    result = pool.map(list_worker, titles_dict.items(), chunksize=1)
-
+    result = pool.map(list_worker, list(titles_dict.items()), chunksize=5)
     for title, pdf_result, text, cited_papers in result:
         if pdf_result:
             for paper in cited_papers:
@@ -222,7 +255,7 @@ if __name__ == '__main__':
     print("%s documents were not extracted due to errors:" % len(error_documents))
     for i, (doc_id, reason) in enumerate(error_documents):
         doc = titles_dict[doc_id]
-        print("%s." % i), doc["author"], doc["year"], doc["title"], doc["file"]
+        print( "%s. %s %s %s %s" % (i, doc["author"], doc["year"], doc["title"], doc["file"]))
         print("\t--", reason)
 
     # Write Graph Edges to csv
