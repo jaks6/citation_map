@@ -18,17 +18,33 @@ _Based on dpapathanasiou's [example script for pdfminer](https://github.com/dpap
 For the above to work, we do some text normalization (removing punctuation, whitespace, special characters) and assume that
 the title_y would only appear in text_x if it appears in the references section...
 
-### Usage:
-1. Export list of articles as .csv from Zotero, (articles should have File attachments)
-2. Run `analyze_papers.py zotero_file.csv`
-3. Script should produce two files: Edges_titles.csv and Nodes_titles.csv in folder "gephi"
-4. Load them into [Gephi](https://gephi.org) with "Load Spreadsheet"
+### Configuration
 
+Before using it, make sure that you have installed the dependencies in
+an isolated environment.
+
+Create an activate a virtual environment called `venv`:
+
+```
+python -m venv venv
+source venv/bin/activate
+```
+
+And then install the dependencies:
+
+```
+pip install -r requirements.txt
+```
+
+### Usage:
+
+1. Export list of articles as .csv from Zotero, (articles should have File attachments)
+2. Run `python analyze_papers.py zotero_file.csv`
+3. Script should produce two files in the `gephi` folder: `Edges_titles.csv` and `Nodes_titles.csv`
+4. Load them into [Gephi](https://gephi.org) with "Load Spreadsheet"
 
 ## Notes
 * Tested with Python3
 * Uses the library [pdfminer](https://pypi.org/project/pdfminer/)
 * You can specify number of processes the script uses to parse the PDFs with parameter --processes (default value is 4)
-
-
 
